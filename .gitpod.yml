@@ -15,4 +15,4 @@ tasks:
         rustup default 1.85.1
         cargo install trunk
         rustup target add wasm32-unknown-unknown
-        trunk serve --open
+        trunk serve
