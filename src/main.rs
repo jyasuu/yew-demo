@@ -2,13 +2,36 @@ use yew::prelude::*;
 
 mod tutorial;
 
-use tutorial::{Video,VideosListProps};
+use tutorial::{Video,VideosListProps,VideosDetailsProps};
+
+
+#[function_component(VideoDetails)]
+fn video_details(VideosDetailsProps { video }: &VideosDetailsProps) -> Html {
+    html! {
+        <div>
+            <h3>{ video.title.clone() }</h3>
+            <img src="https://placehold.co/640x360.png?text=Video+Player+Placeholder" alt="video thumbnail" />
+        </div>
+    }
+}
 
 #[function_component(VideosList)]
-pub fn videos_list(VideosListProps { videos }: &VideosListProps) -> Html {
-    videos.iter().map(|video| html! {
-        <p key={video.id}>{format!("{}: {}", video.speaker, video.title)}</p>
-    }).collect()
+pub fn videos_list(VideosListProps { videos ,on_click  }: &VideosListProps) -> Html {
+    let on_click = on_click.clone();
+    videos.iter().map(|video| 
+        {
+            let on_video_select = {
+                let on_click = on_click.clone();
+                let video = video.clone();
+                Callback::from(move |_| {
+                    on_click.emit(video.clone())
+                })
+            };
+            html! {
+                <p key={video.id} onclick={on_video_select}>{format!("{}: {}", video.speaker, video.title)}</p>
+            }
+        }
+        ).collect()
 }
 
 #[function_component(App)]
@@ -40,18 +63,26 @@ fn app() -> Html {
             url: "https://youtu.be/PsaFVLr8t4E".to_string(),
         },
     ];
+    let selected_video = use_state(|| None);
+    let on_video_select = {
+        let selected_video = selected_video.clone();
+        Callback::from(move |video: Video| {
+            selected_video.set(Some(video))
+        })
+    };
+    let details = selected_video.as_ref().map(|video| html! {
+        <VideoDetails video={video.clone()} />
+    });
 
     html! {
     <>
         <h1>{ "RustConf Explorer" }</h1>
         <div>
             <h3>{"Videos to watch"}</h3>
-            <VideosList videos={videos} />
+            <VideosList videos={videos} on_click={on_video_select.clone()} />
+            
         </div>
-        <div>
-            <h3>{ "John Doe: Building and breaking things" }</h3>
-            <img src="https://placehold.co/640x360.png?text=Video+Player+Placeholder" alt="video thumbnail" />
-        </div>
+        {for details}
     </>
     }
 }
