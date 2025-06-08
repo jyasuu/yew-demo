@@ -1,6 +1,7 @@
 mod tutorial;
+mod tomato_clock;
 
 fn main() {
     
-    yew::Renderer::<tutorial::App>::new().render();
+    yew::Renderer::<tomato_clock::TomatoClockApp>::new().render();
 }

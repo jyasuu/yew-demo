@@ -1,5 +1,44 @@
 <!doctype html>
 <html lang="en">
-    <head></head>
-    <body></body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tomato Clock - Pomodoro Timer</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            'tomato-red': '#e74c3c',
+                            'tomato-green': '#27ae60',
+                            'tomato-orange': '#e67e22',
+                            'dark-tomato': '#c0392b',
+                            'light-tomato': '#fadbd8',
+                        }
+                    }
+                }
+            }
+        </script>
+        <style>
+            .tomato-counter {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background-color: #e0e0e0;
+                margin: 0 3px;
+                transition: background-color 0.3s;
+            }
+            
+            #progress-circle {
+                transition: stroke-dashoffset 1s linear;
+            }
+        </style>
+    
+    </head>
+    <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+    </body>
 </html>
