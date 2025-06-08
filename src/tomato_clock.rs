@@ -1,6 +1,7 @@
 use gloo_timers::callback::Interval;
+use wasm_bindgen::JsCast;
 use web_sys::console;
-use web_sys::{Event, HtmlInputElement};
+use web_sys::{Event, HtmlAudioElement , HtmlInputElement};
 use yew::prelude::*;
 #[derive(Clone, PartialEq, Debug, Copy)]
 pub enum PomodoroMode {
@@ -305,8 +306,27 @@ impl Component for TomatoClockApp {
             Msg::Tick => {
                 if self.is_running && self.time_left_seconds > 0 {
                     self.time_left_seconds -= 1;
-                    console::log_1(&format!("Tick: time_left_seconds = {}", self.time_left_seconds).into());
+                    // The console log for every tick can be noisy, uncomment if needed for debugging:
+                    // console::log_1(&format!("Tick: time_left_seconds = {}", self.time_left_seconds).into());
                 } else if self.is_running && self.time_left_seconds == 0 {
+                    // Play sound when timer ends
+                    if let Some(window) = web_sys::window() {
+                        if let Some(document) = window.document() {
+                            if let Some(element) = document.get_element_by_id("alarm") {
+                                if let Ok(audio_element) = element.dyn_into::<HtmlAudioElement>() {
+                                    let play_result = audio_element.play();
+                                    if let Err(e) = play_result {
+                                        console::error_1(&format!("Error initiating audio play: {:?}", e).into());
+                                    }
+                                } else {
+                                    console::error_1(&"Failed to cast element to HtmlAudioElement for alarm.".into());
+                                }
+                            } else {
+                                console::error_1(&"Audio element with id 'alarm' not found.".into());
+                            }
+                        }
+                    }
+
                     self.stop_interval(); // Stop current interval before switching mode
                     self.is_running = false; // Mark as not running to allow mode switch logic to restart if needed
                     ctx.link().send_message(Msg::SwitchMode);
@@ -382,6 +402,11 @@ impl Component for TomatoClockApp {
 
         html! {
             <>
+                // Audio element for the alarm sound
+                <audio id="alarm" preload="auto">
+                    <source src="assets/homepod_timer.mp3" type="audio/mpeg" />
+                    {"Your browser does not support the audio element."}
+                </audio>
                 <div class="max-w-lg w-full p-6">
                     <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
                         // Header
