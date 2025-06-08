@@ -1,10 +1,158 @@
-use gloo_net::http::Request;
 use yew::prelude::*;
-use serde::Deserialize;
+
 
 #[function_component(TomatoClockApp)]
 pub fn app() -> Html {
     let header = "🍅 Tomato Clock";
+
+    
+    // // Timer variables
+    // let timer;
+    let is_running = false;
+    let time_left = 25 * 60; // 25 minutes in seconds
+    let current_mode = "work"; // 'work', 'shortBreak', 'longBreak'
+    let pomodoro_count = 0;
+    
+    // // DOM elements
+    // const timerDisplay = document.getElementById('timer');
+    // const statusDisplay = document.getElementById('status');
+    // const startPauseButton = document.getElementById('start-pause');
+    // const resetButton = document.getElementById('reset');
+    // const progressCircle = document.getElementById('progress-circle');
+    // const counterDisplay = document.getElementById('counter');
+    // const workTimeInput = document.getElementById('work-time');
+    // const shortBreakInput = document.getElementById('short-break');
+    // const longBreakInput = document.getElementById('long-break');
+    
+    // // Update timer display
+    // function updateDisplay() {
+    //     const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+    //     const seconds = (timeLeft % 60).toString().padStart(2, '0');
+    //     timerDisplay.textContent = `${minutes}:${seconds}`;
+        
+    //     // Update progress circle
+    //     let totalTime;
+    //     if (currentMode === 'work') totalTime = parseInt(workTimeInput.value) * 60;
+    //     else if (currentMode === 'shortBreak') totalTime = parseInt(shortBreakInput.value) * 60;
+    //     else totalTime = parseInt(longBreakInput.value) * 60;
+        
+    //     const progress = 283 - (timeLeft / totalTime) * 283;
+    //     progressCircle.style.strokeDashoffset = progress;
+    // }
+    
+    // // Switch between modes
+    // function switchMode() {
+    //     if (currentMode === 'work') {
+    //         pomodoroCount++;
+    //         updateCounter();
+            
+    //         if (pomodoroCount % 4 === 0) {
+    //             currentMode = 'longBreak';
+    //             timeLeft = parseInt(longBreakInput.value) * 60;
+    //             statusDisplay.textContent = 'Long Break';
+    //             statusDisplay.className = 'mt-2 font-semibold text-tomato-green';
+    //         } else {
+    //             currentMode = 'shortBreak';
+    //             timeLeft = parseInt(shortBreakInput.value) * 60;
+    //             statusDisplay.textContent = 'Short Break';
+    //             statusDisplay.className = 'mt-2 font-semibold text-tomato-orange';
+    //         }
+    //     } else {
+    //         currentMode = 'work';
+    //         timeLeft = parseInt(workTimeInput.value) * 60;
+    //         statusDisplay.textContent = 'Work Time';
+    //         statusDisplay.className = 'mt-2 font-semibold text-tomato-red';
+    //     }
+        
+    //     updateDisplay();
+    // }
+    
+    // // Update pomodoro counter
+    // function updateCounter() {
+    //     const tomatoes = counterDisplay.querySelectorAll('.tomato-counter');
+    //     tomatoes.forEach((tomato, index) => {
+    //         if (index < pomodoroCount) {
+    //             tomato.className = 'tomato-counter bg-tomato-red';
+    //         } else {
+    //             tomato.className = 'tomato-counter';
+    //         }
+    //     });
+    // }
+    
+    // // Start/Pause timer
+    // function toggleTimer() {
+    //     if (isRunning) {
+    //         clearInterval(timer);
+    //         isRunning = false;
+    //         startPauseButton.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
+    //         startPauseButton.classList.remove('bg-tomato-orange');
+    //         startPauseButton.classList.add('bg-tomato-green');
+    //     } else {
+    //         timer = setInterval(() => {
+    //             timeLeft--;
+    //             updateDisplay();
+                
+    //             if (timeLeft <= 0) {
+    //                 clearInterval(timer);
+    //                 switchMode();
+    //                 isRunning = false;
+    //                 startPauseButton.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
+    //                 startPauseButton.classList.remove('bg-tomato-orange');
+    //                 startPauseButton.classList.add('bg-tomato-green');
+    //             }
+    //         }, 1000);
+            
+    //         isRunning = true;
+    //         startPauseButton.innerHTML = '<i class="fas fa-pause mr-2"></i>Pause';
+    //         startPauseButton.classList.remove('bg-tomato-green');
+    //         startPauseButton.classList.add('bg-tomato-orange');
+    //     }
+    // }
+    
+    // // Reset timer
+    // function resetTimer() {
+    //     clearInterval(timer);
+    //     isRunning = false;
+    //     currentMode = 'work';
+    //     timeLeft = parseInt(workTimeInput.value) * 60;
+    //     pomodoroCount = 0;
+    //     statusDisplay.textContent = 'Work Time';
+    //     statusDisplay.className = 'mt-2 font-semibold text-tomato-red';
+    //     startPauseButton.innerHTML = '<i class="fas fa-play mr-2"></i>Start';
+    //     startPauseButton.classList.remove('bg-tomato-orange');
+    //     startPauseButton.classList.add('bg-tomato-green');
+    //     updateDisplay();
+    //     updateCounter();
+    // }
+    
+    // // Event listeners
+    // startPauseButton.addEventListener('click', toggleTimer);
+    // resetButton.addEventListener('click', resetTimer);
+    
+    // // Input change listeners
+    // workTimeInput.addEventListener('change', () => {
+    //     if (currentMode === 'work') {
+    //         timeLeft = parseInt(workTimeInput.value) * 60;
+    //         updateDisplay();
+    //     }
+    // });
+    
+    // shortBreakInput.addEventListener('change', () => {
+    //     if (currentMode === 'shortBreak') {
+    //         timeLeft = parseInt(shortBreakInput.value) * 60;
+    //         updateDisplay();
+    //     }
+    // });
+    
+    // longBreakInput.addEventListener('change', () => {
+    //     if (currentMode === 'longBreak') {
+    //         timeLeft = parseInt(longBreakInput.value) * 60;
+    //         updateDisplay();
+    //     }
+    // });
+    
+    // // Initialize
+    // updateDisplay();
     
     html! {
     <>
