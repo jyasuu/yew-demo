@@ -22,12 +22,6 @@ on:
         required: true
         default: true
 
-      GITHUB_RELEASE:
-        type: boolean
-        description: 'Upload GitHub release'
-        required: true
-        default: false
-
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
 
@@ -42,19 +36,9 @@ jobs:
   
       steps:
         - uses: actions/checkout@v3
-        # Guard clause that cancels the workflow in case of an invalid DOCKERFILE_PATH and/or incorrectly configured Github Pages. 
-        # The main reason for choosing this workaround for aborting the workflow is the fact that it does not display the workflow as successful, which can set false expectations.
-        - name: DOCKERFILE_PATH.
-          shell: bash
-          run: |
-            # We check whether the Dockerfile_path is valid. 
-            if [ ! -f ${{ github.event.inputs.DOCKERFILE_PATH }} ]; then
-                echo "::error title=Invalid Dockerfile path::No file found at ${{ github.event.inputs.DOCKERFILE_PATH }}"
-                echo "terminate=true" >> $GITHUB_ENV
-            fi
 
         - name: Github Pages config guard clause
-          if: ${{ github.event.inputs.DEPLOY_TO_GITHUB_PAGES == 'true' }}
+          # if: ${{ github.event.inputs.DEPLOY_TO_GITHUB_PAGES == 'true' }}
           run: |
             # We use the Github Rest api to get information regarding pages for the Github Repository and store it into a temporary file named "pages_response".
             set +e
@@ -129,7 +113,7 @@ jobs:
 
 
   deploy_to_github_pages: # Job that deploys the github-pages artifact to github-pages.
-    if: ${{ github.event.inputs.DEPLOY_TO_GITHUB_PAGES == 'true' }}
+    # if: ${{ github.event.inputs.DEPLOY_TO_GITHUB_PAGES == 'true' }}
     needs: build
     environment:
       name: github-pages
