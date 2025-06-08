@@ -14,10 +14,85 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+  # Allow inputs to be passed when manually triggering the workflow from the Actions tab
+    inputs:
+      DEPLOY_TO_GITHUB_PAGES:
+        type: boolean
+        description: 'Deploy to Github pages'
+        required: true
+        default: true
+
+      GITHUB_RELEASE:
+        type: boolean
+        description: 'Upload GitHub release'
+        required: true
+        default: false
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+
+  guard_clause:
+      runs-on: ubuntu-latest
+  
+      env:
+        GH_TOKEN: ${{ github.token }} # As required by the GitHub-CLI  
+
+      permissions:
+        actions: 'write' # Required in order to terminate the workflow run.
+  
+      steps:
+        - uses: actions/checkout@v3
+        # Guard clause that cancels the workflow in case of an invalid DOCKERFILE_PATH and/or incorrectly configured Github Pages. 
+        # The main reason for choosing this workaround for aborting the workflow is the fact that it does not display the workflow as successful, which can set false expectations.
+        - name: DOCKERFILE_PATH.
+          shell: bash
+          run: |
+            # We check whether the Dockerfile_path is valid. 
+            if [ ! -f ${{ github.event.inputs.DOCKERFILE_PATH }} ]; then
+                echo "::error title=Invalid Dockerfile path::No file found at ${{ github.event.inputs.DOCKERFILE_PATH }}"
+                echo "terminate=true" >> $GITHUB_ENV
+            fi
+
+        - name: Github Pages config guard clause
+          if: ${{ github.event.inputs.DEPLOY_TO_GITHUB_PAGES == 'true' }}
+          run: |
+            # We use the Github Rest api to get information regarding pages for the Github Repository and store it into a temporary file named "pages_response".
+            set +e
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pages > pages_response
+
+            # We make sure Github Pages has been enabled for this repository.
+            if [ "$?" -ne 0 ]; then
+              echo "::error title=Potential pages configuration error.::Please make sure you have enabled Github pages for the ${{ github.repository }} repository. If already enabled then Github pages might be down"
+              echo "terminate=true" >> $GITHUB_ENV
+            fi
+            set -e
+
+            # We make sure the Github pages build & deployment source is set to "workflow" (Github Actions). Instead of a "legacy" (branch).
+            if [[ "$(jq --compact-output --raw-output .build_type pages_response)" != "workflow" ]]; then
+                echo "Undefined behaviour, Make sure the Github Pages source is correctly configured in the Github Pages settings."
+                echo "::error title=Pages configuration error.::Please make sure you have correctly picked \"Github Actions\" as the build and deployment source for the Github Pages."
+                echo "terminate=true" >> $GITHUB_ENV
+            fi
+            rm pages_response
+
+        - name: Terminate run if error occurred.
+          run: |
+            if [[ $terminate == "true" ]]; then
+              gh run cancel ${{ github.run_id }}
+              gh run watch ${{ github.run_id }}
+            fi
+
   build:
+    needs: guard_clause # Dependency
     runs-on: ubuntu-latest
+
+
+    permissions: # Permissions to grant the GITHUB_TOKEN.
+      contents: write  # Required permission to make a github release.
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -44,25 +119,30 @@ jobs:
       - name: Build the Rust WASM app and all of its assets
         run: trunk build --public-url ${{ github.event.repository.name }} --release
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
+      # - name: Setup Pages
+      #   uses: actions/configure-pages@v3
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: "./dist"
 
-  deploy:
+
+  deploy_to_github_pages: # Job that deploys the github-pages artifact to github-pages.
+    if: ${{ github.event.inputs.DEPLOY_TO_GITHUB_PAGES == 'true' }}
     needs: build
-    runs-on: ubuntu-latest
-    
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    runs-on: ubuntu-latest
     steps:
-      - name: Deploy to GitHub Pages
+      # Deployment to github pages
+      - name: Deploy GitHub Pages site
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v3
