@@ -1,10 +1,7 @@
 // src/auth/github.rs
 use serde::Deserialize;
 use gloo_storage::{SessionStorage, Storage};
-
-const CLIENT_ID: &str = "Ov23liACWRscsUseORai";
-const REDIRECT_URI: &str = "https://8080-jyasuu-yewdemo-k57lkcdb36j.ws-us120.gitpod.io/callback";
-
+use crate::config::Config;
 
 #[derive(Deserialize, Debug)]
 pub struct TokenResponse {
@@ -26,6 +23,9 @@ pub fn initiate_login() {
     SessionStorage::set("pkce_code_verifier", &code_verifier)
         .expect("Failed to store code verifier");
     
+    let config_str = include_str!("../../config.json");
+    let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+
     let auth_url = format!(
         "https://github.com/login/oauth/authorize?\
          client_id={}&\
@@ -34,27 +34,29 @@ pub fn initiate_login() {
          state=STATE&\
          code_challenge={}&\
          code_challenge_method=S256",
-        CLIENT_ID, REDIRECT_URI, code_challenge
+        config.github_auth.client_id, config.github_auth.redirect_uri, code_challenge
     );
     
     gloo_utils::window().location().set_href(&auth_url).unwrap();
 }
 
 pub async fn exchange_code(code: String) -> Result<TokenResponse, String> {
+    let config_str = include_str!("../../config.json");
+    let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+
     let code_verifier: String = SessionStorage::get("pkce_code_verifier")
         .map_err(|_| "Missing code verifier".to_string())?;
     
-    let token_url = "https://github.com/login/oauth/access_token";
     let params = [
-        ("client_id", CLIENT_ID),
-        ("client_secret", ""),
+        ("client_id", config.github_auth.client_id.as_str()),
+        ("client_secret", config.github_auth.client_secret.as_str()),
         ("code", &code),
-        ("redirect_uri", REDIRECT_URI),
+        ("redirect_uri", config.github_auth.redirect_uri.as_str()),
         ("code_verifier", &code_verifier),
     ];
     
     let client = reqwest::Client::new();
-    let response = client.post(token_url)
+    let response = client.post(&config.github_auth.token_url)
         .header("Accept", "application/json")
         .form(&params)
         .send()
@@ -67,8 +69,11 @@ pub async fn exchange_code(code: String) -> Result<TokenResponse, String> {
 }
 
 pub async fn get_user(access_token: &str) -> Result<GitHubUser, String> {
+    let config_str = include_str!("../../config.json");
+    let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+
     let client = reqwest::Client::new();
-    let response = client.get("https://api.github.com/user")
+    let response = client.get(&config.github_auth.user_api_url)
         .header("User-Agent", "reqwest")
         .header("Authorization", format!("token {}", access_token))
         .send()

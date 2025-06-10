@@ -1,8 +1,10 @@
 use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
 use web_sys::console;
-use web_sys::{Event, HtmlAudioElement , HtmlInputElement};
+use web_sys::{Event, HtmlAudioElement, HtmlInputElement};
 use yew::prelude::*;
+use crate::config::Config;
+
 #[derive(Clone, PartialEq, Debug, Copy)]
 pub enum PomodoroMode {
     Work,
@@ -230,6 +232,7 @@ pub struct TomatoClockApp {
     current_mode: PomodoroMode,
     pomodoro_count: u32,
     interval: Option<Interval>,
+    alarm_sound_path: String,
 }
 
 impl TomatoClockApp {
@@ -263,17 +266,20 @@ impl Component for TomatoClockApp {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let work_time_default = PomodoroMode::Work.default_time_minutes();
+        let config_str = include_str!("../config.json");
+        let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+
         Self {
             header: "🍅 Tomato Clock".to_string(),
-            work_time_minutes: work_time_default,
-            short_break_time_minutes: PomodoroMode::ShortBreak.default_time_minutes(),
-            long_break_time_minutes: PomodoroMode::LongBreak.default_time_minutes(),
-            time_left_seconds: work_time_default * 60,
+            work_time_minutes: config.pomodoro_defaults.work_time_minutes,
+            short_break_time_minutes: config.pomodoro_defaults.short_break_time_minutes,
+            long_break_time_minutes: config.pomodoro_defaults.long_break_time_minutes,
+            time_left_seconds: config.pomodoro_defaults.work_time_minutes * 60,
             is_running: false,
             current_mode: PomodoroMode::Work,
             pomodoro_count: 0,
             interval: None,
+            alarm_sound_path: config.alarm_sound_path,
         }
     }
 
@@ -299,6 +305,11 @@ impl Component for TomatoClockApp {
                 self.stop_interval();
                 self.is_running = false;
                 self.current_mode = PomodoroMode::Work;
+                let config_str = include_str!("../config.json");
+                let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+                self.work_time_minutes = config.pomodoro_defaults.work_time_minutes;
+                self.short_break_time_minutes = config.pomodoro_defaults.short_break_time_minutes;
+                self.long_break_time_minutes = config.pomodoro_defaults.long_break_time_minutes;
                 self.time_left_seconds = self.work_time_minutes * 60;
                 self.pomodoro_count = 0;
                 true
@@ -404,7 +415,7 @@ impl Component for TomatoClockApp {
             <>
                 // Audio element for the alarm sound
                 <audio id="alarm" preload="auto">
-                    <source src="assets/homepod_timer.mp3" type="audio/mpeg" />
+                    <source src={self.alarm_sound_path.clone()} type="audio/mpeg" />
                     {"Your browser does not support the audio element."}
                 </audio>
                 <div class="max-w-lg w-full p-6">

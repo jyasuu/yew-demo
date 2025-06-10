@@ -1,9 +1,12 @@
 // src/main.rs
 use yew::prelude::*;
 use yew_router::prelude::*;
-
+mod tomato_clock;
+mod tutorial;
+mod timer;
 mod auth;
 mod components;
+mod config;
 use components::{home::Home, login::Login, callback::Callback};
 
 #[derive(Clone, Routable, PartialEq)]
@@ -14,6 +17,12 @@ enum Route {
     Login,
     #[at("/callback")]
     Callback,
+    #[at("/tomato_clock")]
+    TomatoClock,
+    #[at("/tutorial")]
+    Tutorial,
+    #[at("/timer")]
+    Timer,
 }
 
 fn switch(routes: Route) -> Html {
@@ -21,6 +30,9 @@ fn switch(routes: Route) -> Html {
         Route::Home => html! { <Home /> },
         Route::Login => html! { <Login /> },
         Route::Callback => html! { <Callback /> },
+        Route::TomatoClock => html! { <tomato_clock::TomatoClockApp /> },
+        Route::Tutorial => html! { <tutorial::App /> },
+        Route::Timer => html! { <timer::App /> },
     }
 }
 
