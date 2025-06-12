@@ -14,7 +14,7 @@
   "alarm_sound_path": "assets/homepod_timer.mp3",
   "github_auth": {
     "client_id": "Ov23liACWRscsUseORai",
-    "redirect_uri": "https://8080-jyasuu-yewdemo-k57lkcdb36j.ws-us120.gitpod.io/callback",
+    "redirect_uri": "https://jyasuu.github.io/yew-demo/callback",
     "token_url": "https://github.com/login/oauth/access_token",
     "client_secret": "",
     "user_api_url": "https://api.github.com/user"
