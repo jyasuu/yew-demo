@@ -1,6 +1,7 @@
 use gloo::console::{self, Timer};
 use gloo::timers::callback::{Interval, Timeout};
 use yew::{html, Component, Context, Html};
+use crate::config::Config;
 
 pub enum Msg {
     StartTimeout,
@@ -37,12 +38,15 @@ impl Component for App {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
+        let config_str = include_str!("../config.json");
+        let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+
         let standalone_handle =
-            Interval::new(10, || console::debug!("Example of a standalone callback."));
+            Interval::new(config.timer_defaults.standalone_interval_ms, || console::debug!("Example of a standalone callback."));
 
         let clock_handle = {
             let link = ctx.link().clone();
-            Interval::new(1, move || link.send_message(Msg::UpdateTime))
+            Interval::new(config.timer_defaults.clock_interval_ms, move || link.send_message(Msg::UpdateTime))
         };
 
         Self {
@@ -56,11 +60,14 @@ impl Component for App {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let config_str = include_str!("../config.json");
+        let config: Config = serde_json::from_str(config_str).expect("Failed to parse config.json");
+
         match msg {
             Msg::StartTimeout => {
                 let handle = {
                     let link = ctx.link().clone();
-                    Timeout::new(3000, move || link.send_message(Msg::Done))
+                    Timeout::new(config.timer_defaults.timeout_ms, move || link.send_message(Msg::Done))
                 };
 
                 self.timeout = Some(handle);
@@ -75,7 +82,7 @@ impl Component for App {
             Msg::StartInterval => {
                 let handle = {
                     let link = ctx.link().clone();
-                    Interval::new(1000, move || link.send_message(Msg::Tick))
+                    Interval::new(config.timer_defaults.tick_interval_ms, move || link.send_message(Msg::Tick))
                 };
                 self.interval = Some(handle);
 

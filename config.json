@@ -1,0 +1,22 @@
+{
+  "pomodoro_defaults": {
+    "work_time_minutes": 25,
+    "short_break_time_minutes": 5,
+    "long_break_time_minutes": 15
+  },
+  "timer_defaults": {
+    "standalone_interval_ms": 10,
+    "clock_interval_ms": 1,
+    "timeout_ms": 3000,
+    "tick_interval_ms": 1000
+  },
+  "tutorial_data_url": "https://yew.rs/tutorial/data.json",
+  "alarm_sound_path": "assets/homepod_timer.mp3",
+  "github_auth": {
+    "client_id": "Ov23liACWRscsUseORai",
+    "redirect_uri": "https://jyasuu.github.io/yew-demo/callback",
+    "token_url": "https://github.com/login/oauth/access_token",
+    "client_secret": "",
+    "user_api_url": "https://api.github.com/user"
+  }
+}
