@@ -25,6 +25,8 @@ enum Route {
     Timer,
     #[at("/")]
     ParticleSimulation,
+    #[at("/*path")]
+    Misc { path: String },
 }
 
 fn switch(routes: Route) -> Html {
@@ -36,6 +38,7 @@ fn switch(routes: Route) -> Html {
         Route::Tutorial => html! { <tutorial::App /> },
         Route::Timer => html! { <timer::App /> },
         Route::ParticleSimulation => html! { <ParticleSimulation /> },
+         Route::Misc { path } => html! {<p>{format!("Matched some other path: {}", path)}</p>},
     }
 }
 
