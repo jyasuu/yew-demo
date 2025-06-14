@@ -11,7 +11,7 @@ use components::{home::Home, login::Login, callback::Callback, particle_simulati
 
 #[derive(Clone, Routable, PartialEq)]
 enum Route {
-    #[at("/")]
+    #[at("/home")]
     Home,
     #[at("/login")]
     Login,
@@ -23,7 +23,7 @@ enum Route {
     Tutorial,
     #[at("/timer")]
     Timer,
-    #[at("/particle_simulation")]
+    #[at("/")]
     ParticleSimulation,
 }
 
@@ -38,10 +38,13 @@ fn switch(routes: Route) -> Html {
         Route::ParticleSimulation => html! { <ParticleSimulation /> },
     }
 }
+
 #[function_component(App)]
 fn app() -> Html {
     html! {
-        <ParticleSimulation />
+        <BrowserRouter>
+            <Switch<Route> render={switch} />
+        </BrowserRouter>
     }
 }
 
