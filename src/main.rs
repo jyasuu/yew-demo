@@ -7,7 +7,7 @@ mod timer;
 mod auth;
 mod components;
 mod config;
-use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation};
+use components::{home::Home, login::Login, callback::Callback};
 
 #[derive(Clone, Routable, PartialEq)]
 enum Route {
@@ -23,8 +23,6 @@ enum Route {
     Tutorial,
     #[at("/timer")]
     Timer,
-    #[at("/particle_simulation")]
-    ParticleSimulation,
 }
 
 fn switch(routes: Route) -> Html {
@@ -35,7 +33,6 @@ fn switch(routes: Route) -> Html {
         Route::TomatoClock => html! { <tomato_clock::TomatoClockApp /> },
         Route::Tutorial => html! { <tutorial::App /> },
         Route::Timer => html! { <timer::App /> },
-        Route::ParticleSimulation => html! { <ParticleSimulation /> },
     }
 }
 
