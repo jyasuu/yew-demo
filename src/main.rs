@@ -38,14 +38,14 @@ fn switch(routes: Route) -> Html {
         Route::Tutorial => html! { <tutorial::App /> },
         Route::Timer => html! { <timer::App /> },
         Route::ParticleSimulation => html! { <ParticleSimulation /> },
-         Route::Misc { path } => html! {<p>{format!("Matched some other path: {}", path)}</p>},
+        Route::Misc { path } => html! {<p>{format!("Matched some other path: {}", path)}</p>},
     }
 }
 
 #[function_component(App)]
 fn app() -> Html {
     html! {
-        <BrowserRouter>
+        <BrowserRouter basename="/yew-demo">
             <Switch<Route> render={switch} />
         </BrowserRouter>
     }
