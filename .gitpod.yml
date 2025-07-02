@@ -6,13 +6,13 @@
 
 tasks:
   - init: |
-        rustup update 1.85.1
-        rustup default 1.85.1
+        rustup update 1.88
+        rustup default 1.88
         cargo install trunk
         rustup target add wasm32-unknown-unknown
     command: |
-        rustup update 1.85.1
-        rustup default 1.85.1
+        rustup update 1.88
+        rustup default 1.88
         cargo install trunk
         rustup target add wasm32-unknown-unknown
         RUSTFLAGS='--cfg getrandom_backend="wasm_js"' trunk serve
