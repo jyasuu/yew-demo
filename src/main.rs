@@ -8,7 +8,7 @@ mod auth;
 mod components;
 mod config;
 mod boids;
-use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation};
+use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation,navbar::Navbar};
 use boids::BoidsApp;
 
 #[derive(Clone, Routable, PartialEq)]
@@ -51,7 +51,12 @@ fn switch(routes: Route) -> Html {
 fn app() -> Html {
     html! {
         <BrowserRouter basename="/yew-demo">
-            <Switch<Route> render={switch} />
+            <div class="app">
+                <Navbar />
+                <main class="main-content">
+                    <Switch<Route> render={switch} />
+                </main>
+            </div>
         </BrowserRouter>
     }
 }
