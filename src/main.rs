@@ -8,7 +8,7 @@ mod auth;
 mod components;
 mod config;
 mod boids;
-use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation,navbar::Navbar};
+use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation,navbar::Navbar,particle_system::ParticleSystem};
 use boids::BoidsApp;
 
 #[derive(Clone, Routable, PartialEq)]
@@ -27,6 +27,8 @@ enum Route {
     Timer,
     #[at("/particle_simulation")]
     ParticleSimulation,
+    #[at("/particle_system")]
+    ParticleSystem,
     #[at("/*path")]
     Misc { path: String },
     #[at("/")]
@@ -43,6 +45,7 @@ fn switch(routes: Route) -> Html {
         Route::Timer => html! { <timer::App /> },
         Route::Boids => html! { <BoidsApp /> },
         Route::ParticleSimulation => html! { <ParticleSimulation /> },
+        Route::ParticleSystem => html! { <ParticleSystem /> },
         Route::Misc { path } => html! {<p>{format!("Matched some other path: {}", path)}</p>},
     }
 }

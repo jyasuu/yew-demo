@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use gloo_timers::callback::Interval;
 use rand::prelude::*;
-use rand::thread_rng;
+use rand::rng;
 use rand::Rng;
 
 #[derive(Clone, Copy, Debug)]
@@ -110,12 +110,12 @@ struct Boid {
 
 impl Boid {
     fn new(x: f64, y: f64) -> Self {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         Self {
             position: Vector2::new(x, y),
             velocity: Vector2::new(
-                rng.gen_range(-2.0..2.0),
-                rng.gen_range(-2.0..2.0),
+                rng.random_range(-2.0..2.0),
+                rng.random_range(-2.0..2.0),
             ),
             acceleration: Vector2::zero(),
             max_speed: 2.0,
@@ -289,11 +289,11 @@ impl Component for BoidsApp {
         // Initialize with some boids
         {
             let mut boids_ref = boids.borrow_mut();
-            let mut rng = thread_rng();
+            let mut rng = rng();
             for _ in 0..50 {
                 boids_ref.push(Boid::new(
-                    rng.gen_range(0.0..800.0),
-                    rng.gen_range(0.0..600.0),
+                    rng.random_range(0.0..800.0),
+                    rng.random_range(0.0..600.0),
                 ));
             }
         }
@@ -511,11 +511,11 @@ impl BoidsApp {
         
         if current_count < self.num_boids {
             // Add boids
-            let mut rng = thread_rng();
+            let mut rng = rng();
             for _ in current_count..self.num_boids {
                 boids.push(Boid::new(
-                    rng.gen_range(0.0..800.0),
-                    rng.gen_range(0.0..600.0),
+                    rng.random_range(0.0..800.0),
+                    rng.random_range(0.0..600.0),
                 ));
             }
         } else if current_count > self.num_boids {

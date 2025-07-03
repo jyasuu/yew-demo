@@ -98,6 +98,17 @@ pub fn navbar() -> Html {
                     </li>
                     <li class="nav-item">
                         <a 
+                            class={is_active(&Route::ParticleSystem)}
+                            onclick={
+                                let navigate_to = navigate_to.clone();
+                                move |_| navigate_to.emit(Route::ParticleSystem)
+                            }
+                        >
+                            {"Particle Sys"}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a 
                             class={is_active(&Route::Login)}
                             onclick={
                                 let navigate_to = navigate_to.clone();

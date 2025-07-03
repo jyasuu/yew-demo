@@ -26,11 +26,17 @@ web-sys = { version = "0.3.77", features = ["CanvasRenderingContext2d", "HtmlAud
     "Document",
     "Element",
     "HtmlElement",
-    "HtmlCanvasElement",
     "CanvasRenderingContext2d",
     "MouseEvent",
     "Event",
-    "HtmlInputElement"] }
+    "HtmlInputElement",
+    "DomRect",  
+    "DomRectReadOnly",
+    "console",
+    "CanvasRenderingContext2d",
+    "HtmlCanvasElement",
+    "MouseEvent",
+    "DomRect",  ] }
 yew = { version = "0.21.0", features = ["csr"] }
 yew-router = "0.18.0"
 
