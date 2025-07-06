@@ -6,8 +6,8 @@ use crate::config::Config;
 #[derive(Deserialize, Debug)]
 pub struct TokenResponse {
     pub access_token: String,
-    pub token_type: String,
-    pub scope: String,
+    // pub token_type: String,
+    // pub scope: String,
 }
 
 #[derive(Deserialize, Debug)]

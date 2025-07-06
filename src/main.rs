@@ -8,8 +8,11 @@ mod auth;
 mod components;
 mod config;
 mod boids;
+mod gemini_chat;
 use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation,navbar::Navbar,particle_system::ParticleSystem};
 use boids::BoidsApp;
+use gemini_chat::{App as GeminiApp};
+
 
 #[derive(Clone, Routable, PartialEq)]
 enum Route {
@@ -31,8 +34,10 @@ enum Route {
     ParticleSystem,
     #[at("/*path")]
     Misc { path: String },
-    #[at("/")]
+    #[at("/boids")]
     Boids,
+    #[at("/")]
+    Gemini,
 }
 
 fn switch(routes: Route) -> Html {
@@ -46,6 +51,7 @@ fn switch(routes: Route) -> Html {
         Route::Boids => html! { <BoidsApp /> },
         Route::ParticleSimulation => html! { <ParticleSimulation /> },
         Route::ParticleSystem => html! { <ParticleSystem /> },
+        Route::Gemini => html! { <GeminiApp /> },
         Route::Misc { path } => html! {<p>{format!("Matched some other path: {}", path)}</p>},
     }
 }

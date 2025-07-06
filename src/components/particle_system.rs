@@ -4,8 +4,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use std::f64::consts::PI;
 use gloo_timers::callback::Interval;
-use rand::prelude::*;
-use rand::thread_rng;
 use rand::Rng;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -200,7 +198,7 @@ impl ParticleConfig {
                 emission_rate: 5.0,
                 is_burst: false,
                 generator: |x, y| {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     let mut particle = Particle::new(x + (rng.random::<f64>() - 0.5) * 20.0, y);
                     particle.vx = (rng.random::<f64>() - 0.5) * 2.0;
                     particle.vy = -rng.random::<f64>() * 3.0 - 2.0;
@@ -223,7 +221,7 @@ impl ParticleConfig {
                 emission_rate: 20.0,
                 is_burst: true,
                 generator: |x, y| {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     let angle = rng.random::<f64>() * 2.0 * PI;
                     let speed = rng.random::<f64>() * 8.0 + 2.0;
                     let mut particle = Particle::new(x, y);
@@ -248,7 +246,7 @@ impl ParticleConfig {
                 emission_rate: 8.0,
                 is_burst: false,
                 generator: |_, _| {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     let mut particle = Particle::new(rng.random::<f64>() * 800.0, -10.0);
                     particle.vx = -0.5;
                     particle.vy = rng.random::<f64>() * 5.0 + 8.0;
@@ -264,7 +262,7 @@ impl ParticleConfig {
                 emission_rate: 3.0,
                 is_burst: false,
                 generator: |_, _| {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     let mut particle = Particle::new(rng.random::<f64>() * 800.0, -10.0);
                     particle.vx = (rng.random::<f64>() - 0.5) * 0.5;
                     particle.vy = rng.random::<f64>() * 2.0 + 1.0;
@@ -281,7 +279,7 @@ impl ParticleConfig {
                 emission_rate: 2.0,
                 is_burst: false,
                 generator: |x, y| {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     let angle = rng.random::<f64>() * 2.0 * PI;
                     let radius = rng.random::<f64>() * 50.0 + 20.0;
                     let mut particle = Particle::new(
@@ -309,7 +307,7 @@ impl ParticleConfig {
                 emission_rate: 4.0,
                 is_burst: false,
                 generator: |x, y| {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     let t = js_sys::Date::now() * 0.001;
                     let spiral_radius = 30.0;
                     let spiral_angle = rng.random::<f64>() * 2.0 * PI;

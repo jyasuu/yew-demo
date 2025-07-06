@@ -1,13 +1,12 @@
 use yew::prelude::*;
-use web_sys::{window, HtmlCanvasElement, CanvasRenderingContext2d};
-use wasm_bindgen::prelude::*;
+use web_sys::{HtmlCanvasElement, CanvasRenderingContext2d};
 use wasm_bindgen::JsCast;
 use std::rc::Rc;
 use std::cell::RefCell;
 use gloo_timers::callback::Interval;
-use rand::prelude::*;
 use rand::rng;
 use rand::Rng;
+
 
 #[derive(Clone, Copy, Debug)]
 struct Vector2 {
@@ -247,9 +246,9 @@ impl Boid {
         ctx.line_to(-8.0, 3.0);
         ctx.close_path();
         
-        ctx.set_fill_style(&"#4CAF50".into());
+        ctx.set_fill_style_str("#4CAF50");
         ctx.fill();
-        ctx.set_stroke_style(&"#2E7D32".into());
+        ctx.set_stroke_style_str("#2E7D32");
         ctx.set_line_width(1.0);
         ctx.stroke();
         

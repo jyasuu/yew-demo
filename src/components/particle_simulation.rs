@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use yew::prelude::*;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 use wasm_bindgen::prelude::*;
@@ -74,7 +75,7 @@ impl Particle {
         
         ctx.begin_path();
         ctx.arc(self.x, self.y, self.radius, 0.0, 2.0 * std::f64::consts::PI)?;
-        ctx.set_fill_style(&JsValue::from_str(&self.color));
+        ctx.set_fill_style_str(&self.color);
         ctx.fill();
         
         // Add glow effect
