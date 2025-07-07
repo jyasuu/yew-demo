@@ -1,9 +1,11 @@
 use yew::prelude::*;
+use yew::AttrValue;
 use web_sys::{HtmlInputElement, KeyboardEvent};
 use wasm_bindgen::JsCast;
 use serde::{Deserialize, Serialize};
 use gloo_net::http::Request;
 use gloo_console::log;
+use pulldown_cmark::{Parser, Options, html};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Message {
@@ -230,7 +232,15 @@ pub fn app() -> Html {
                                         "bg-white text-gray-900 border border-gray-200"
                                     }
                                 )}>
-                                    <p class="text-sm whitespace-pre-wrap">{&message.content}</p>
+                                    <div class="text-sm prose prose-sm max-w-none">
+                                        {Html::from_html_unchecked(AttrValue::from(
+                                            if message.is_user {
+                                                message.content.clone()
+                                            } else {
+                                                markdown_to_html(&message.content)
+                                            }
+                                        ))}
+                                    </div>
                                     <p class={classes!(
                                         "text-xs", "mt-1",
                                         if message.is_user { "text-blue-100" } else { "text-gray-500" }
@@ -334,4 +344,18 @@ fn format_timestamp() -> String {
     let hours = date.get_hours();
     let minutes = date.get_minutes();
     format!("{:02}:{:02}", hours, minutes)
+}
+
+fn markdown_to_html(markdown: &str) -> String {
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_FOOTNOTES);
+    options.insert(Options::ENABLE_TASKLISTS);
+    options.insert(Options::ENABLE_SMART_PUNCTUATION);
+    
+    let parser = Parser::new_ext(markdown, options);
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    html_output
 }
