@@ -73,8 +73,9 @@ pub fn app() -> Html {
             let mut new_messages = (*messages).clone();
             new_messages.push(user_message.clone());
             log!("[USER] Adding user message:", &user_message.content);
+            log!("[COUNT] Messages before adding user:", (*messages).len());
             log!("[COUNT] Total messages after user message:", new_messages.len());
-            messages.set(new_messages);
+            log!("[DEBUG] User message state updated successfully");
             
             let message_content = (*input_value).clone();
             input_value.set(String::new());
@@ -82,6 +83,7 @@ pub fn app() -> Html {
             
             wasm_bindgen_futures::spawn_local(async move {
                 log!("[API] Starting API call to Gemini...");
+                log!("[DEBUG] Current messages state at async start:", (*new_messages).len());
                 match call_gemini_api(&message_content, &api_key).await {
                     Ok(response) => {
                         let ai_message = Message {
@@ -91,12 +93,13 @@ pub fn app() -> Html {
                             timestamp: format_timestamp(),
                         };
                         
-                        let mut updated_messages = (*messages).clone();
-                        log!("[COUNT] Messages before AI response:", updated_messages.len());
-                        updated_messages.push(ai_message);
-                        log!("[AI] Adding AI response:", &response);
-                        log!("[COUNT] Total messages after AI response:", updated_messages.len());
-                        messages.set(updated_messages);
+                        messages.set({
+                            log!("[COUNT] Messages before AI response:", new_messages.len());
+                            new_messages.push(ai_message);
+                            log!("[AI] Adding AI response:", &response);
+                            log!("[COUNT] Total messages after AI response:", new_messages.len());
+                            new_messages
+                        });
                     }
                     Err(err) => {
                         let error_message = Message {
@@ -106,12 +109,14 @@ pub fn app() -> Html {
                             timestamp: format_timestamp(),
                         };
                         
-                        let mut updated_messages = (*messages).clone();
-                        log!("[ERROR] API Error occurred:", &err);
-                        log!("[COUNT] Messages before error message:", updated_messages.len());
-                        updated_messages.push(error_message);
-                        log!("[COUNT] Total messages after error message:", updated_messages.len());
-                        messages.set(updated_messages);
+                        messages.set({
+                            let mut current_messages = (*messages).clone();
+                            log!("[ERROR] API Error occurred:", &err);
+                            log!("[COUNT] Messages before error message:", current_messages.len());
+                            current_messages.push(error_message);
+                            log!("[COUNT] Total messages after error message:", current_messages.len());
+                            current_messages
+                        });
                     }
                 }
                 log!("[API] API call completed, loading state cleared");
