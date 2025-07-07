@@ -1,7 +1,6 @@
 use yew::prelude::*;
 use yew::AttrValue;
 use web_sys::{HtmlInputElement, KeyboardEvent};
-use wasm_bindgen::JsCast;
 use serde::{Deserialize, Serialize};
 use gloo_net::http::Request;
 use gloo_console::log;
@@ -72,7 +71,9 @@ pub fn app() -> Html {
             };
             
             let mut new_messages = (*messages).clone();
-            new_messages.push(user_message);
+            new_messages.push(user_message.clone());
+            log!("[USER] Adding user message:", &user_message.content);
+            log!("[COUNT] Total messages after user message:", new_messages.len());
             messages.set(new_messages);
             
             let message_content = (*input_value).clone();
@@ -80,17 +81,21 @@ pub fn app() -> Html {
             is_loading.set(true);
             
             wasm_bindgen_futures::spawn_local(async move {
+                log!("[API] Starting API call to Gemini...");
                 match call_gemini_api(&message_content, &api_key).await {
                     Ok(response) => {
                         let ai_message = Message {
                             id: format!("ai_{}", js_sys::Date::now()),
-                            content: response,
+                            content: response.clone(),
                             is_user: false,
                             timestamp: format_timestamp(),
                         };
                         
                         let mut updated_messages = (*messages).clone();
+                        log!("[COUNT] Messages before AI response:", updated_messages.len());
                         updated_messages.push(ai_message);
+                        log!("[AI] Adding AI response:", &response);
+                        log!("[COUNT] Total messages after AI response:", updated_messages.len());
                         messages.set(updated_messages);
                     }
                     Err(err) => {
@@ -102,10 +107,14 @@ pub fn app() -> Html {
                         };
                         
                         let mut updated_messages = (*messages).clone();
+                        log!("[ERROR] API Error occurred:", &err);
+                        log!("[COUNT] Messages before error message:", updated_messages.len());
                         updated_messages.push(error_message);
+                        log!("[COUNT] Total messages after error message:", updated_messages.len());
                         messages.set(updated_messages);
                     }
                 }
+                log!("[API] API call completed, loading state cleared");
                 is_loading.set(false);
             });
         })
@@ -147,7 +156,10 @@ pub fn app() -> Html {
     let clear_chat = {
         let messages = messages.clone();
         Callback::from(move |_| {
+            log!("[CLEAR] Clearing all messages");
+            log!("[COUNT] Messages before clear:", (*messages).len());
             messages.set(Vec::new());
+            log!("[COUNT] Messages after clear:", 0);
         })
     };
 
