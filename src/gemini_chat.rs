@@ -12,22 +12,41 @@ pub struct Message {
     pub content: String,
     pub is_user: bool,
     pub timestamp: String,
+    pub image_data: Option<String>, // Base64 encoded image data
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GeminiRequest {
     pub contents: Vec<Content>,
+    #[serde(rename = "generationConfig",skip_serializing_if = "Option::is_none")]
+    pub generation_config: Option<GenerationConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GenerationConfig {
+    #[serde(rename = "responseModalities")]
+    pub response_modalities: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Content {
-    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
     pub parts: Vec<Part>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Part {
-    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inline_data: Option<InlineData>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct InlineData {
+    pub mime_type: String,
+    pub data: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -47,18 +66,21 @@ pub fn app() -> Html {
     let is_loading = use_state(|| false);
     let api_key = use_state(|| String::new());
     let show_settings = use_state(|| false);
+    let image_mode = use_state(|| false);
 
     let send_message = {
         let messages = messages.clone();
         let input_value = input_value.clone();
         let is_loading = is_loading.clone();
         let api_key = api_key.clone();
+        let image_mode = image_mode.clone();
         
         Callback::from(move |_| {
             let messages = messages.clone();
             let input_value = input_value.clone();
             let is_loading = is_loading.clone();
             let api_key = api_key.clone();
+            let image_mode = image_mode.clone();
             
             if input_value.is_empty() || api_key.is_empty() {
                 return;
@@ -69,6 +91,7 @@ pub fn app() -> Html {
                 content: (*input_value).clone(),
                 is_user: true,
                 timestamp: format_timestamp(),
+                image_data: None,
             };
             
             let mut new_messages = (*messages).clone();
@@ -85,13 +108,14 @@ pub fn app() -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 log!("[API] Starting API call to Gemini...");
                 log!("[DEBUG] Current messages state at async start:", (*new_messages).len());
-                match call_gemini_api(&new_messages, &api_key).await {
-                    Ok(response) => {
+                match call_gemini_api(&new_messages, &api_key, *image_mode).await {
+                    Ok((response, image_data)) => {
                         let ai_message = Message {
                             id: format!("ai_{}", js_sys::Date::now()),
                             content: response.clone(),
                             is_user: false,
                             timestamp: format_timestamp(),
+                            image_data,
                         };
                         
                         messages.set({
@@ -108,6 +132,7 @@ pub fn app() -> Html {
                             content: format!("Error: {}", err),
                             is_user: false,
                             timestamp: format_timestamp(),
+                            image_data: None,
                         };
                         
                         messages.set({
@@ -159,6 +184,13 @@ pub fn app() -> Html {
         })
     };
 
+    let toggle_image_mode = {
+        let image_mode = image_mode.clone();
+        Callback::from(move |_| {
+            image_mode.set(!*image_mode);
+        })
+    };
+
     let clear_chat = {
         let messages = messages.clone();
         Callback::from(move |_| {
@@ -185,6 +217,19 @@ pub fn app() -> Html {
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
+                            <button
+                                onclick={toggle_image_mode}
+                                class={classes!(
+                                    "px-3", "py-2", "text-sm", "rounded-lg", "transition-colors",
+                                    if *image_mode {
+                                        "bg-purple-100 text-purple-700 hover:bg-purple-200"
+                                    } else {
+                                        "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                                    }
+                                )}
+                            >
+                                {if *image_mode { "🎨 Image Mode" } else { "💬 Text Mode" }}
+                            </button>
                             <button
                                 onclick={clear_chat}
                                 class="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -250,6 +295,15 @@ pub fn app() -> Html {
                                         "bg-white text-gray-900 border border-gray-200"
                                     }
                                 )}>
+                                    if let Some(image_data) = &message.image_data {
+                                        <div class="mb-2">
+                                            <img 
+                                                src={format!("data:image/png;base64,{}", image_data)}
+                                                alt="Generated image"
+                                                class="max-w-full h-auto rounded-lg"
+                                            />
+                                        </div>
+                                    }
                                     <div class="text-sm prose prose-sm max-w-none">
                                         {Html::from_html_unchecked(AttrValue::from(
                                             if message.is_user {
@@ -291,7 +345,15 @@ pub fn app() -> Html {
                     <div class="flex items-end space-x-3">
                         <div class="flex-1">
                             <textarea
-                                placeholder={if api_key.is_empty() { "Set your API key first..." } else { "Type your message..." }}
+                                placeholder={
+                                    if api_key.is_empty() { 
+                                        "Set your API key first..." 
+                                    } else if *image_mode { 
+                                        "Describe the image you want to generate..." 
+                                    } else { 
+                                        "Type your message..." 
+                                    }
+                                }
                                 value={(*input_value).clone()}
                                 disabled={api_key.is_empty()}
                                 oninput={on_input_change}
@@ -315,24 +377,39 @@ pub fn app() -> Html {
     }
 }
 
-async fn call_gemini_api(messages: &[Message], api_key: &str) -> Result<String, String> {
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key={}",
-        api_key
-    );
+async fn call_gemini_api(messages: &[Message], api_key: &str, image_mode: bool) -> Result<(String, Option<String>), String> {
+    let url = if image_mode {
+        format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key={}",
+            api_key
+        )
+    } else {
+        format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key={}",
+            api_key
+        )
+    };
     
     // Convert message history to Gemini API format
     let contents: Vec<Content> = messages.iter().map(|msg| {
         Content {
-            role: if msg.is_user { "user".to_string() } else { "model".to_string() },
+            role: if image_mode { None } else{ if msg.is_user { Some("user".to_string()) } else { Some("model".to_string()) }},
             parts: vec![Part {
-                text: msg.content.clone(),
+                text: Some(msg.content.clone()),
+                inline_data: None,
             }],
         }
     }).collect();
     
     let request_body = GeminiRequest {
         contents,
+        generation_config: if image_mode {
+            Some(GenerationConfig {
+                response_modalities: vec!["TEXT".to_string(), "IMAGE".to_string()],
+            })
+        } else {
+            None
+        },
     };
     
     let response = Request::post(&url)
@@ -353,10 +430,24 @@ async fn call_gemini_api(messages: &[Message], api_key: &str) -> Result<String, 
         .map_err(|e| format!("Failed to parse response: {}", e))?;
     
     if let Some(candidate) = gemini_response.candidates.first() {
-        if let Some(part) = candidate.content.parts.first() {
-            Ok(part.text.clone())
+        let mut text_content = String::new();
+        let mut image_data = None;
+        
+        for part in &candidate.content.parts {
+            if let Some(text) = &part.text {
+                text_content.push_str(text);
+            }
+            if let Some(inline_data) = &part.inline_data {
+                if inline_data.mime_type.starts_with("image/") {
+                    image_data = Some(inline_data.data.clone());
+                }
+            }
+        }
+        
+        if text_content.is_empty() && image_data.is_none() {
+            Err("No content in response".to_string())
         } else {
-            Err("No text content in response".to_string())
+            Ok((text_content, image_data))
         }
     } else {
         Err("No candidates in response".to_string())
