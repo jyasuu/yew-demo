@@ -21,6 +21,7 @@ pub struct GeminiRequest {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Content {
+    pub role: String,
     pub parts: Vec<Part>,
 }
 
@@ -84,7 +85,7 @@ pub fn app() -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 log!("[API] Starting API call to Gemini...");
                 log!("[DEBUG] Current messages state at async start:", (*new_messages).len());
-                match call_gemini_api(&message_content, &api_key).await {
+                match call_gemini_api(&new_messages, &api_key).await {
                     Ok(response) => {
                         let ai_message = Message {
                             id: format!("ai_{}", js_sys::Date::now()),
@@ -314,18 +315,24 @@ pub fn app() -> Html {
     }
 }
 
-async fn call_gemini_api(message: &str, api_key: &str) -> Result<String, String> {
+async fn call_gemini_api(messages: &[Message], api_key: &str) -> Result<String, String> {
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key={}",
         api_key
     );
     
-    let request_body = GeminiRequest {
-        contents: vec![Content {
+    // Convert message history to Gemini API format
+    let contents: Vec<Content> = messages.iter().map(|msg| {
+        Content {
+            role: if msg.is_user { "user".to_string() } else { "model".to_string() },
             parts: vec![Part {
-                text: message.to_string(),
+                text: msg.content.clone(),
             }],
-        }],
+        }
+    }).collect();
+    
+    let request_body = GeminiRequest {
+        contents,
     };
     
     let response = Request::post(&url)
