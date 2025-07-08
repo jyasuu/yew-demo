@@ -6,7 +6,7 @@ use crate::Route;
 #[function_component(Navbar)]
 pub fn navbar() -> Html {
     let navigator = use_navigator().unwrap();
-    let current_route = use_route::<Route>().unwrap_or(Route::Boids);
+    let current_route = use_route::<Route>().unwrap_or(Route::PromptAgent);
 
     let navigate_to = {
         let navigator = navigator.clone();
@@ -30,6 +30,28 @@ pub fn navbar() -> Html {
                     <span class="brand-text">{"Yew App"}</span>
                 </div>
                 <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a 
+                            class={is_active(&Route::PromptAgent)}
+                            onclick={
+                                let navigate_to = navigate_to.clone();
+                                move |_| navigate_to.emit(Route::PromptAgent)
+                            }
+                        >
+                            {"Prompt Agent"}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a 
+                            class={is_active(&Route::Gemini)}
+                            onclick={
+                                let navigate_to = navigate_to.clone();
+                                move |_| navigate_to.emit(Route::Gemini)
+                            }
+                        >
+                            {"Gemini Chat"}
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a 
                             class={is_active(&Route::Boids)}

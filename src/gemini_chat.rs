@@ -39,12 +39,13 @@ pub struct Content {
 pub struct Part {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "inlineData",skip_serializing_if = "Option::is_none")]
     pub inline_data: Option<InlineData>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InlineData {
+    #[serde(rename = "mimeType")]
     pub mime_type: String,
     pub data: String,
 }
@@ -108,6 +109,7 @@ pub fn app() -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 log!("[API] Starting API call to Gemini...");
                 log!("[DEBUG] Current messages state at async start:", (*new_messages).len());
+                log!("[DEBUG] Image mode state when calling API: {}", *image_mode);
                 match call_gemini_api(&new_messages, &api_key, *image_mode).await {
                     Ok((response, image_data)) => {
                         let ai_message = Message {
@@ -187,7 +189,9 @@ pub fn app() -> Html {
     let toggle_image_mode = {
         let image_mode = image_mode.clone();
         Callback::from(move |_| {
-            image_mode.set(!*image_mode);
+            let new_mode = !*image_mode;
+            log!("[UI] Toggling image mode from {} to {}", *image_mode, new_mode);
+            image_mode.set(new_mode);
         })
     };
 
@@ -378,6 +382,10 @@ pub fn app() -> Html {
 }
 
 async fn call_gemini_api(messages: &[Message], api_key: &str, image_mode: bool) -> Result<(String, Option<String>), String> {
+    // Log the mode and basic parameters
+    log!("[GEMINI_API] Starting API call - Image Mode: {}", image_mode);
+    log!("[GEMINI_API] Number of messages: {}", messages.len());
+    
     let url = if image_mode {
         format!(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key={}",
@@ -390,6 +398,15 @@ async fn call_gemini_api(messages: &[Message], api_key: &str, image_mode: bool) 
         )
     };
     
+    // Log which model/URL is being used
+    let model_name = if image_mode {
+        "gemini-2.0-flash-preview-image-generation"
+    } else {
+        "gemini-2.5-flash-lite-preview-06-17"
+    };
+    log!("[GEMINI_API] Using model: {}", model_name);
+    log!("[GEMINI_API] API URL: {}", url.replace(api_key, "***API_KEY***"));
+    
     // Convert message history to Gemini API format
     let contents: Vec<Content> = messages.iter().map(|msg| {
         Content {
@@ -401,55 +418,117 @@ async fn call_gemini_api(messages: &[Message], api_key: &str, image_mode: bool) 
         }
     }).collect();
     
-    let request_body = GeminiRequest {
-        contents,
-        generation_config: if image_mode {
-            Some(GenerationConfig {
-                response_modalities: vec!["TEXT".to_string(), "IMAGE".to_string()],
-            })
-        } else {
-            None
-        },
+    log!("[GEMINI_API] Converted {} messages to contents", contents.len());
+    
+    let generation_config = if image_mode {
+        Some(GenerationConfig {
+            response_modalities: vec!["TEXT".to_string(), "IMAGE".to_string()],
+        })
+    } else {
+        None
     };
     
+    // Log generation config
+    if let Some(ref config) = generation_config {
+        log!("[GEMINI_API] Generation config - Response modalities: {:?}", config.response_modalities.clone());
+    } else {
+        log!("[GEMINI_API] No generation config (text mode)");
+    }
+    
+    let request_body = GeminiRequest {
+        contents,
+        generation_config,
+    };
+    
+    // Log the request body structure (without sensitive data)
+    log!("[GEMINI_API] Request body prepared - Contents count: {}, Has generation config: {}", 
+         request_body.contents.len(), 
+         request_body.generation_config.is_some());
+    
+    // Log the last user message for context
+    if let Some(last_message) = messages.last() {
+        log!("[GEMINI_API] Last message content (first 100 chars): {}", 
+             last_message.content.chars().take(100).collect::<String>());
+    }
+    
+    log!("[GEMINI_API] Sending request to Gemini API...");
     let response = Request::post(&url)
         .header("Content-Type", "application/json")
         .json(&request_body)
-        .map_err(|e| format!("Failed to create request: {}", e))?
+        .map_err(|e| {
+            log!("[GEMINI_API] Failed to create request: {}", format!("Failed to create request: {}", e));
+            format!("Failed to create request: {}", e)
+        })?
         .send()
         .await
-        .map_err(|e| format!("Request failed: {}", e))?;
+        .map_err(|e| {
+            log!("[GEMINI_API] Request failed: {}", format!("Request failed: {}", e));
+            format!("Request failed: {}", e)
+        })?;
+    
+    log!("[GEMINI_API] Response received - Status: {}", response.status());
     
     if !response.ok() {
-        return Err(format!("API request failed with status: {}", response.status()));
+        let status = response.status();
+        log!("[GEMINI_API] API request failed with status: {}", status);
+        return Err(format!("API request failed with status: {}", status));
     }
     
+    log!("[GEMINI_API] Parsing response JSON...");
     let gemini_response: GeminiResponse = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        .map_err(|e| {
+            log!("[GEMINI_API] Failed to parse response: {}", format!("Failed to parse response: {}", e));
+            format!("Failed to parse response: {}", e)
+        })?;
+    
+    log!("[GEMINI_API] Response parsed successfully - Candidates count: {}", gemini_response.candidates.len());
     
     if let Some(candidate) = gemini_response.candidates.first() {
         let mut text_content = String::new();
         let mut image_data = None;
         
-        for part in &candidate.content.parts {
+        log!("[GEMINI_API] Processing candidate - Parts count: {}", candidate.content.parts.len());
+        
+        for (i, part) in candidate.content.parts.iter().enumerate() {
+            log!("[GEMINI_API] Processing part {}: has_text={}, has_inline_data={}", 
+                 i, part.text.is_some(), part.inline_data.is_some());
+            
             if let Some(text) = &part.text {
+                log!("[GEMINI_API] Found text content in part {} (length: {})", i, text.len());
                 text_content.push_str(text);
             }
+            
             if let Some(inline_data) = &part.inline_data {
+                log!("[GEMINI_API] Found inline data in part {} - MIME type: {}, data length: {}", 
+                     i, inline_data.mime_type.clone(), inline_data.data.len());
+                
                 if inline_data.mime_type.starts_with("image/") {
+                    log!("[GEMINI_API] Detected image data - MIME: {}", inline_data.mime_type.clone());
                     image_data = Some(inline_data.data.clone());
+                } else {
+                    log!("[GEMINI_API] Non-image inline data detected: {}", inline_data.mime_type.clone());
                 }
             }
         }
         
+        log!("[GEMINI_API] Final result - Text length: {}, Has image: {}", 
+             text_content.len(), image_data.is_some());
+        
+        if image_mode && image_data.is_none() {
+            log!("[GEMINI_API] WARNING: Image mode was enabled but no image data was returned!");
+        }
+        
         if text_content.is_empty() && image_data.is_none() {
+            log!("[GEMINI_API] ERROR: No content in response");
             Err("No content in response".to_string())
         } else {
+            log!("[GEMINI_API] Success - Returning content");
             Ok((text_content, image_data))
         }
     } else {
+        log!("[GEMINI_API] ERROR: No candidates in response");
         Err("No candidates in response".to_string())
     }
 }
