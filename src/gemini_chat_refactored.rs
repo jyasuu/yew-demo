@@ -118,8 +118,7 @@ pub struct GenerationConfig {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Content {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    pub role: String,
     pub parts: Vec<Part>,
 }
 
@@ -130,9 +129,9 @@ pub struct Part {
     #[serde(rename = "inlineData", skip_serializing_if = "Option::is_none")]
     pub inline_data: Option<InlineData>,
     #[serde(rename = "functionCall", skip_serializing_if = "Option::is_none")]
-    pub function_call: Option<FunctionCall>,
+    pub function_call: Option<serde_json::Value>,
     #[serde(rename = "functionResponse", skip_serializing_if = "Option::is_none")]
-    pub function_response: Option<FunctionResponse>,
+    pub function_response: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -249,6 +248,11 @@ pub fn app() -> Html {
                 // Process conversation with tool support
                 match process_conversation_with_tools(&new_messages, &api_key, &tool_registry).await {
                     Ok((response, tool_calls, tool_results, image_data)) => {
+                        log!("[MCP] Creating AI message with image_data: {}", image_data.is_some());
+                        if let Some(ref img_data) = image_data {
+                            log!("[MCP] Image data length: {} bytes", img_data.len());
+                        }
+                        
                         let ai_message = Message {
                             id: format!("ai_{}", js_sys::Date::now()),
                             content: response,
@@ -594,28 +598,39 @@ async fn process_conversation_with_tools(
                 
                 if let Some(function_call) = &part.function_call {
                     has_function_calls = true;
+                    
+                    // Extract function name and args from JSON value
+                    let function_name = function_call.get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let function_args = function_call.get("args")
+                        .cloned()
+                        .unwrap_or(serde_json::json!({}));
+                    
                     let tool_call = ToolCall {
                         id: format!("call_{}", js_sys::Date::now()),
-                        name: function_call.name.clone(),
-                        arguments: function_call.args.clone(),
+                        name: function_name.clone(),
+                        arguments: function_args,
                     };
                     
-                    log!("[MCP] Executing tool: {}", function_call.name.clone());
+                    log!("[MCP] Executing tool: {}", function_name.clone());
                     
                     // Execute the tool
                     let (tool_result, tool_image_data) = execute_tool_with_image(&tool_call, tool_registry, api_key).await;
                     
                     // If tool generated an image, store it for the final response
                     if let Some(image_data) = tool_image_data {
+                        log!("[MCP] Image data captured from tool execution: {} bytes", image_data.len());
                         final_image_data = Some(image_data);
                     }
                     
                     current_tool_calls.push(tool_call.clone());
                     current_tool_results.push(tool_result.clone());
                     
-                    // Add function response to contents for next iteration
+                    // Add function response to contents for next iteration (following chat-cli structure)
                     contents.push(Content {
-                        role: Some("model".to_string()),
+                        role: "model".to_string(),
                         parts: vec![Part {
                             text: None,
                             inline_data: None,
@@ -625,19 +640,19 @@ async fn process_conversation_with_tools(
                     });
                     
                     contents.push(Content {
-                        role: Some("function".to_string()),
+                        role: "user".to_string(),
                         parts: vec![Part {
                             text: None,
                             inline_data: None,
                             function_call: None,
-                            function_response: Some(FunctionResponse {
-                                name: function_call.name.clone(),
-                                response: if tool_result.is_error {
+                            function_response: Some(serde_json::json!({
+                                "name": function_name,
+                                "response": if tool_result.is_error {
                                     serde_json::json!({"error": tool_result.content})
                                 } else {
                                     serde_json::json!({"result": tool_result.content})
-                                },
-                            }),
+                                }
+                            })),
                         }],
                     });
                 }
@@ -671,6 +686,7 @@ async fn execute_tool_with_image(tool_call: &ToolCall, tool_registry: &ToolRegis
             if let Some(prompt) = tool_call.arguments.get("prompt").and_then(|v| v.as_str()) {
                 match call_gemini_image_api(prompt, api_key).await {
                     Ok(Some(image_data)) => {
+                        log!("[TOOL] Image generation successful, returning {} bytes", image_data.len());
                         let tool_result = ToolResult {
                             tool_call_id: tool_call.id.clone(),
                             content: "Image generated successfully".to_string(),
@@ -728,7 +744,7 @@ async fn call_gemini_image_api(prompt: &str, api_key: &str) -> Result<Option<Str
     
     // Create the request body for image generation
     let contents = vec![Content {
-        role: None, // Image generation doesn't use roles
+        role: "user".to_string(), // Image generation uses user role
         parts: vec![Part {
             text: Some(prompt.to_string()),
             inline_data: None,
@@ -801,7 +817,7 @@ fn messages_to_gemini_contents(messages: &[Message]) -> Vec<Content> {
     messages
         .iter()
         .map(|msg| Content {
-            role: Some(if msg.is_user { "user" } else { "model" }.to_string()),
+            role: if msg.is_user { "user" } else { "model" }.to_string(),
             parts: vec![Part {
                 text: Some(msg.content.clone()),
                 inline_data: None,
