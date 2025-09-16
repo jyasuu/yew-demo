@@ -603,7 +603,13 @@ async fn process_conversation_with_tools(
                     log!("[MCP] Executing tool: {}", function_call.name.clone());
                     
                     // Execute the tool
-                    let tool_result = execute_tool(&tool_call, tool_registry).await;
+                    let (tool_result, tool_image_data) = execute_tool_with_image(&tool_call, tool_registry, api_key).await;
+                    
+                    // If tool generated an image, store it for the final response
+                    if let Some(image_data) = tool_image_data {
+                        final_image_data = Some(image_data);
+                    }
+                    
                     current_tool_calls.push(tool_call.clone());
                     current_tool_results.push(tool_result.clone());
                     
@@ -656,32 +662,137 @@ async fn process_conversation_with_tools(
     Ok(("Function execution completed".to_string(), final_tool_calls, final_tool_results, final_image_data))
 }
 
-// Execute a tool call
-async fn execute_tool(tool_call: &ToolCall, tool_registry: &ToolRegistry) -> ToolResult {
+// Execute a tool call and return both result and any generated image data
+async fn execute_tool_with_image(tool_call: &ToolCall, tool_registry: &ToolRegistry, api_key: &str) -> (ToolResult, Option<String>) {
     log!("[TOOL] Executing: {} with args: {}", tool_call.name.clone(), tool_call.arguments.to_string());
     
     match tool_call.name.as_str() {
         "generate_image" => {
             if let Some(prompt) = tool_call.arguments.get("prompt").and_then(|v| v.as_str()) {
-                // For now, return a placeholder since we can't actually generate images in WASM
-                ToolResult {
-                    tool_call_id: tool_call.id.clone(),
-                    content: format!("Image generation requested for: '{}'", prompt),
-                    is_error: false,
+                match call_gemini_image_api(prompt, api_key).await {
+                    Ok(Some(image_data)) => {
+                        let tool_result = ToolResult {
+                            tool_call_id: tool_call.id.clone(),
+                            content: "Image generated successfully".to_string(),
+                            is_error: false,
+                        };
+                        (tool_result, Some(image_data))
+                    }
+                    Ok(None) => {
+                        let tool_result = ToolResult {
+                            tool_call_id: tool_call.id.clone(),
+                            content: "Image generation completed but no image data returned".to_string(),
+                            is_error: true,
+                        };
+                        (tool_result, None)
+                    }
+                    Err(error) => {
+                        let tool_result = ToolResult {
+                            tool_call_id: tool_call.id.clone(),
+                            content: format!("Image generation failed: {}", error),
+                            is_error: true,
+                        };
+                        (tool_result, None)
+                    }
                 }
             } else {
-                ToolResult {
+                let tool_result = ToolResult {
                     tool_call_id: tool_call.id.clone(),
                     content: "Missing required 'prompt' parameter".to_string(),
                     is_error: true,
+                };
+                (tool_result, None)
+            }
+        }
+        _ => {
+            let tool_result = ToolResult {
+                tool_call_id: tool_call.id.clone(),
+                content: format!("Unknown tool: {}", tool_call.name),
+                is_error: true,
+            };
+            (tool_result, None)
+        }
+    }
+}
+
+// Call Gemini API for image generation (referenced from original gemini_chat.rs)
+async fn call_gemini_image_api(prompt: &str, api_key: &str) -> Result<Option<String>, String> {
+    log!("[IMAGE_API] Starting image generation for prompt: {}", prompt);
+    
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key={}",
+        api_key
+    );
+    
+    log!("[IMAGE_API] Using model: gemini-2.0-flash-preview-image-generation");
+    
+    // Create the request body for image generation
+    let contents = vec![Content {
+        role: None, // Image generation doesn't use roles
+        parts: vec![Part {
+            text: Some(prompt.to_string()),
+            inline_data: None,
+            function_call: None,
+            function_response: None,
+        }],
+    }];
+    
+    let generation_config = GenerationConfig {
+        response_modalities: vec!["TEXT".to_string(), "IMAGE".to_string()],
+    };
+    
+    let request_body = GeminiRequest {
+        contents,
+        tools: None, // No tools for image generation
+        generation_config: Some(generation_config),
+    };
+    
+    log!("[IMAGE_API] Sending request to Gemini image generation API...");
+    
+    let response = Request::post(&url)
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .map_err(|e| format!("Failed to create image generation request: {}", e))?
+        .send()
+        .await
+        .map_err(|e| format!("Image generation request failed: {}", e))?;
+    
+    log!("[IMAGE_API] Response received - Status: {}", response.status());
+    
+    if !response.ok() {
+        let status = response.status();
+        log!("[IMAGE_API] Image generation failed with status: {}", status);
+        return Err(format!("Image generation failed with status: {}", status));
+    }
+    
+    let gemini_response: GeminiResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse image generation response: {}", e))?;
+    
+    log!("[IMAGE_API] Response parsed successfully - Candidates count: {}", gemini_response.candidates.len());
+    
+    if let Some(candidate) = gemini_response.candidates.first() {
+        for (i, part) in candidate.content.parts.iter().enumerate() {
+            log!("[IMAGE_API] Processing part {}: has_text={}, has_inline_data={}", 
+                 i, part.text.is_some(), part.inline_data.is_some());
+            
+            if let Some(inline_data) = &part.inline_data {
+                log!("[IMAGE_API] Found inline data in part {} - MIME type: {}, data length: {}", 
+                     i, inline_data.mime_type.clone(), inline_data.data.len());
+                
+                if inline_data.mime_type.starts_with("image/") {
+                    log!("[IMAGE_API] Successfully generated image - MIME: {}", inline_data.mime_type.clone());
+                    return Ok(Some(inline_data.data.clone()));
                 }
             }
         }
-        _ => ToolResult {
-            tool_call_id: tool_call.id.clone(),
-            content: format!("Unknown tool: {}", tool_call.name),
-            is_error: true,
-        },
+        
+        log!("[IMAGE_API] No image data found in response");
+        Ok(None)
+    } else {
+        log!("[IMAGE_API] No candidates in image generation response");
+        Err("No candidates in image generation response".to_string())
     }
 }
 
