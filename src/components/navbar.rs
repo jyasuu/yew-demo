@@ -54,6 +54,17 @@ pub fn navbar() -> Html {
                     </li>
                     <li class="nav-item">
                         <a 
+                            class={is_active(&Route::GeminiMcp)}
+                            onclick={
+                                let navigate_to = navigate_to.clone();
+                                move |_| navigate_to.emit(Route::GeminiMcp)
+                            }
+                        >
+                            {"Gemini Mcp Chat"}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a 
                             class={is_active(&Route::Boids)}
                             onclick={
                                 let navigate_to = navigate_to.clone();
