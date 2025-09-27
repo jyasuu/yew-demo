@@ -13,6 +13,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::{html, html::NodeRef, Context, Component, Html, KeyboardEvent, TargetCast};
 
 use crate::webrtc_chat::web_rtc_manager::{ConnectionState, IceCandidate, NetworkManager, State};
+use crate::utils::qr_code::QrCodeGenerator;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MessageSender {
@@ -68,6 +69,8 @@ pub struct ChatModel<T: NetworkManager + 'static> {
     typing_state: TypingState,
     connection_code: Option<String>,
     last_typing_time: u64,
+    qr_code_data_url: Option<String>,
+    show_qr_modal: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -93,6 +96,8 @@ pub enum Msg {
     StartTyping,
     StopTyping,
     UpdateTypingState(bool),
+    // QR Code and File Sharing messages
+    CloseQRModal,
 }
 
 // UI done from: https://codepen.io/sajadhsm/pen/odaBdd
@@ -115,6 +120,8 @@ impl<T: NetworkManager + 'static> Component for ChatModel<T> {
             },
             connection_code: None,
             last_typing_time: 0,
+            qr_code_data_url: None,
+            show_qr_modal: false,
         }
     }
 
@@ -337,14 +344,31 @@ impl<T: NetworkManager + 'static> Component for ChatModel<T> {
             }
 
             Msg::GenerateQRCode => {
-                // For now, we'll show an alert with QR code info
-                // TODO: Implement actual QR code generation
-                if let Some(code) = &self.connection_code {
-                    web_sys::Window::alert_with_message(
-                        &web_sys::window().unwrap(),
-                        &format!("QR Code feature coming soon!\n\nFor now, share this code:\n{}", code)
-                    ).expect("alert should work");
+                // Generate QR code for the current connection code
+                let code_to_encode = if let Some(code) = &self.connection_code {
+                    code.clone()
+                } else {
+                    // For clients, get the generated answer
+                    self.get_serialized_offer_and_candidates()
+                };
+                
+                match QrCodeGenerator::generate_qr_code_data_url(&code_to_encode) {
+                    Ok(data_url) => {
+                        self.qr_code_data_url = Some(data_url);
+                        self.show_qr_modal = true;
+                    }
+                    Err(err) => {
+                        web_sys::Window::alert_with_message(
+                            &web_sys::window().unwrap(),
+                            &format!("Failed to generate QR code: {}", err)
+                        ).expect("alert should work");
+                    }
                 }
+                true
+            }
+
+            Msg::CloseQRModal => {
+                self.show_qr_modal = false;
                 true
             }
 
@@ -405,9 +429,16 @@ impl<T: NetworkManager + 'static> Component for ChatModel<T> {
         };
 
         html! {
-            <div class="flex flex-col justify-between w-full max-w-4xl mx-auto my-6 h-[calc(100vh-100px)] border-2 border-gray-300 rounded-lg bg-white shadow-xl">
-                { content }
-            </div>
+            <>
+                <div class="flex flex-col justify-between w-full max-w-4xl mx-auto my-6 h-[calc(100vh-100px)] border-2 border-gray-300 rounded-lg bg-white shadow-xl">
+                    { content }
+                </div>
+                
+                // QR Code Modal
+                if self.show_qr_modal {
+                    { self.render_qr_modal(ctx) }
+                }
+            </>
         }
     }
 }
@@ -761,6 +792,47 @@ impl<T: NetworkManager + 'static> ChatModel<T> {
                     </div>
                 </main>
             </>
+        }
+    }
+
+    fn render_qr_modal(&self, ctx: &Context<Self>) -> Html {
+        let qr_data_url = self.qr_code_data_url.clone().unwrap_or_default();
+        
+        html! {
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">{"QR Code"}</h3>
+                        <button
+                            class="text-gray-500 hover:text-gray-700 text-2xl"
+                            onclick={ctx.link().callback(|_| Msg::CloseQRModal)}
+                        >
+                            {"×"}
+                        </button>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="bg-white p-4 rounded-lg border-2 border-gray-200 mb-4">
+                            <img 
+                                src={qr_data_url} 
+                                alt="QR Code"
+                                class="w-full h-auto max-w-xs mx-auto"
+                            />
+                        </div>
+                        
+                        <p class="text-sm text-gray-600 mb-4">
+                            {"Scan this QR code with your friend's device to share the connection code"}
+                        </p>
+                        
+                        <button
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                            onclick={ctx.link().callback(|_| Msg::CloseQRModal)}
+                        >
+                            {"Close"}
+                        </button>
+                    </div>
+                </div>
+            </div>
         }
     }
 

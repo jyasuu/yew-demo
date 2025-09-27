@@ -12,6 +12,7 @@ mod gemini_chat;
 mod gemini_chat_refactored;
 mod prompt_agent;
 mod webrtc_chat;
+mod utils;
 use components::{home::Home, login::Login, callback::Callback, particle_simulation::ParticleSimulation,navbar::Navbar,particle_system::ParticleSystem};
 use boids::BoidsApp;
 use gemini_chat::{App as GeminiApp};
